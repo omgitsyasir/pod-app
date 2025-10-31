@@ -1,3 +1,9 @@
+# Pod 📖
+
+A (work-in-progress) productivity god (get it...Pod) app that does it all.
+
+
+
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
