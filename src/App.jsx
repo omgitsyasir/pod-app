@@ -1,4 +1,4 @@
-import { LayoutDashboard, Plus, List, Home, CheckSquare, PanelLeftClose } from "lucide-react";
+import { LayoutDashboard, Plus, List, Home, CheckSquare, PanelLeftClose, Check, Square, Trash2 } from "lucide-react";
 import { Routes, Route, Link, useParams} from 'react-router-dom';
 import { useState } from 'react';
 
@@ -23,7 +23,7 @@ function IconSidebar({ onTogglePanel }){
   );
 }
 
-function ListPanel({lists = mockLists}){
+function ListPanel({lists = initialLists}){
   return(
     <div className="w-55 bg-gray-800 text-white p-4">
       <h2 className="font-bold text-lg mb-4">Lists</h2>
@@ -41,9 +41,33 @@ function ListPanel({lists = mockLists}){
   );
 }
 
-function TaskPage({lists = lists}) {
+function TaskPage({lists = {lists}, setLists={setLists}, onToggleTask={onToggleTask}, onDeleteTask={onDeleteTask}}) {
   const {id} = useParams();
-  const list = lists.find((item) => item.id == id)
+  const list = lists.find((item) => item.id == id);
+  const [newTaskText, setNewTaskText] = useState("");
+
+  const handleAddTask = () => {
+    if (newTaskText.trim() === "") return;
+    const newTask ={
+      id: Date.now(),
+      text: newTaskText,
+      completed: false,
+    }
+
+    const newLists = lists.map( (item) => {
+      if (item.id == id) {
+        return {
+          ...item,
+          tasks: [...item.tasks, newTask]
+        }
+      }
+      return item;
+    })
+
+    setLists(newLists)
+    setNewTaskText("");
+  }
+
   if(!list){
     return(
       <h1>List Not Found!</h1>
@@ -54,6 +78,20 @@ function TaskPage({lists = lists}) {
       <h1 className="text-3xl font-bold p-4">
         {list.name}
       </h1>
+      <div className="flex gap-2 mb-6">
+        <input
+          type="text"
+          value={newTaskText}
+          onChange={(e) => setNewTaskText(e.target.value)}
+          className="flex-1 bg-gray-700 text-white p-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus-blue-500"
+        />
+        <button
+          onClick={handleAddTask}
+          className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg flex-shrink-0"
+        >
+          <Plus className="h-5 w-5"/>
+        </button>
+      </div>
       <div className="flex flex-col gap-3">
         {list.tasks.length === 0 ? (
           <p className="text-gray-400 p-4">No tasks in this list!</p>
@@ -61,10 +99,27 @@ function TaskPage({lists = lists}) {
           list.tasks.map((task) => (
             <div 
               key={task.id} 
+              
               className="bg-gray-800 p-4 rounded-lg flex items-center"
               >
-                <CheckSquare className="h-5 w-5 mr-4  text-gray-400"/>
-                <span>{task.text}</span>
+                {task.completed ? (
+                    <Check 
+                      onClick={() => onToggleTask(list.id, task.id)} 
+                      className="h-5 w-5 mr-4 cursor-pointer text-gray-400 flex-none"/>
+                  ) : (
+                    <Square 
+                      onClick={() => onToggleTask(list.id, task.id)} 
+                      className="h-5 w-5 mr-4  cursor-pointer hover:text-green-400 text-gray-400 flex-none"/>
+                  )}
+                <span
+                  className={task.completed ? ("line-through text-gray-500 flex-auto") : ("flex-auto")}
+                >{task.text}</span>
+                <button 
+                  className="flex-none"
+                  onClick={() => onDeleteTask(list.id, task.id)}
+                >
+                  <Trash2 className="h-5 w-5 mr-4 hover:text-red-600 cursor-pointer"/>
+                </button>
               </div>
           ))
         )
@@ -74,33 +129,33 @@ function TaskPage({lists = lists}) {
   );
 }
 
-function MainContent({lists = mockLists}){
+function MainContent({lists = {lists}, setLists={setLists}, onToggleTask={onToggleTask}, onDeleteTask={onDeleteTask}}){
   return(
     <main className="flex-1 p-8 bg-gray-950 text-white">
       <Routes>
         <Route path="/" element={<h1>Welcome Home</h1>}/>
         <Route path="/tasks" element={<h1>Your Tasks</h1>}/>
-        <Route path="/list/:id" element={<TaskPage lists={lists}/>}/>
+        <Route path="/list/:id" element={<TaskPage lists={lists} setLists={setLists} onToggleTask={onToggleTask} onDeleteTask={onDeleteTask}/>}/>
       </Routes>
     </main>
   );
 }
 
-const mockLists = [
+const initialLists = [
   {
     id: 1, 
     name:"Work Tasks",
     tasks: [
-      {id: 101, text: "Prepare presentation"},
-      {id: 102, text: "Email Mr. Li"},
+      {id: 101, text: "Prepare presentation", completed: false},
+      {id: 102, text: "Email Mr. Li", completed: true},
     ]
   },
   {
     id: 2, 
     name: "Study Goals",
     tasks: [
-      { id: 201, text: 'Read Chapter 4 of React docs' },
-      { id: 202, text: 'Complete tutorial on `useEffect`' },
+      { id: 201, text: 'Read Chapter 4 of React docs', completed: false},
+      { id: 202, text: 'Complete tutorial on `useEffect`', completed: false},
     ]
   },
   {
@@ -112,23 +167,53 @@ const mockLists = [
     id: 4, 
     name: "Daily To-Dos",
     tasks: [
-      { id: 401, text: 'Morning Run' },
+      { id: 401, text: 'Morning Run', completed: false},
     ]
   },
 ];
 
 export default function App() {
   const [isPanelOpen, setIsPanelOpen] = useState(true);
+  const [lists, setLists] = useState(initialLists);
 
   const togglePanel= () => {
     setIsPanelOpen( (prev) => !prev);
   };
 
+  const handleToggleTask = (listId, taskId) => {
+    setLists((prevLists) => {
+      return prevLists.map((list) => {
+        if (list.id == listId) {
+          const newTasks = list.tasks.map((task) => {
+            if (task.id == taskId) {
+              return {...task, completed: !task.completed};
+            }
+            return task;
+          })
+          return {...list, tasks: newTasks };
+        }
+        return list;
+      })
+    })
+  }
+
+  const handleDeleteTask = (listId, taskId) => {
+    setLists((prevLists) => {
+      return prevLists.map((list) => {
+        if (list.id == listId) {
+          const newTasks = list.tasks.filter((task) => task.id !== taskId);
+          return {...list, tasks: newTasks};
+        }
+        return list;
+      })
+    })
+  }
+
   return(
     <div className="min-h-screen flex flex-row">
       <IconSidebar onTogglePanel={togglePanel}/>
-      {isPanelOpen && <ListPanel/>}
-      <MainContent/>
+      {isPanelOpen && <ListPanel lists={lists}/>}
+      <MainContent lists={lists} setLists={setLists} onToggleTask={handleToggleTask} onDeleteTask={handleDeleteTask}/>
     </div>
 
   )
